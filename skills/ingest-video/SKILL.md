@@ -31,7 +31,8 @@ poll faster than every 15s).
 - Report each **step transition** to the user as it happens, with a plain
   reading of the step: `creating_records` → `validating_url` → `downloading` →
   `validating_video` → `analyzing` (watch `child_workflow_status` for
-  understanding / corpus / transcription individually) → `finalizing`.
+  understanding / corpus / transcription / thumbnail individually; `thumbnail`
+  may be absent on older deployments) → `finalizing`.
 - Surface `project_id` / `file_id` as soon as they appear.
 - Stop polling when `status` is anything other than `running`.
 
@@ -41,7 +42,8 @@ poll faster than every 15s).
   link"), gdrive rate limit, non-video URL. The project is marked `failed` —
   tell the user they can rerun this command after fixing the share settings.
 - A single failed analysis child (see `child_workflow_errors`) is not fatal to
-  the others — say which succeeded and which failed.
+  the others — say which succeeded and which failed. A failed `thumbnail` is
+  cosmetic only: it never fails the project or blocks billing.
 
 ## Step 3: Verify and summarize
 
