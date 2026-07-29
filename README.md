@@ -62,3 +62,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the repo layout and how to add a
 skill or an agent. Short version: drop a directory under `skills/<name>/` with a
 `SKILL.md`, or a file at `agents/<name>.md`. Both manifests already point at
 those directories, so nothing else needs editing.
+
+Deeper references: [docs/WRITING_AGENTS.md](docs/WRITING_AGENTS.md) for agent
+frontmatter and agent-vs-skill, [docs/PUBLISHING.md](docs/PUBLISHING.md) for how
+each host distributes and what the ChatGPT directory still needs.
