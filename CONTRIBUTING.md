@@ -23,7 +23,13 @@ both hosts point at the root, so `skills/` stays where skills.sh expects it.
 .app.json.example     Template for the ChatGPT registered connection (see "ChatGPT wiring")
 skills/<name>/SKILL.md
 agents/<name>.md
+docs/
+  WRITING_AGENTS.md   Agent frontmatter reference and agent-vs-skill guidance
+  PUBLISHING.md       How each host distributes, and what is still missing for the ChatGPT directory
 ```
+
+Nothing in `docs/` ships as a plugin component — keep guidance there, not in
+`agents/`, where every `.md` file is loaded as a subagent.
 
 Only manifests live in `.claude-plugin/` and `.codex-plugin/`. Everything else —
 `skills/`, `agents/`, `hooks/`, `assets/`, `.mcp.json` — stays at the root. Both
@@ -124,14 +130,18 @@ To finish it:
 Validate the manifests — this catches schema mistakes before anyone installs:
 
 ```bash
-claude plugin validate .
+claude plugin validate .claude-plugin/plugin.json
 claude plugin validate .claude-plugin/marketplace.json
 ```
 
-Claude Code, against your working copy:
+`claude plugin validate .` resolves to the marketplace manifest, not the plugin
+manifest — run both paths explicitly.
+
+Claude Code, against your working copy. The trailing slash is required; a bare
+`.` fails with `Invalid marketplace source format`:
 
 ```bash
-claude plugin marketplace add .
+claude plugin marketplace add ./
 claude plugin install montage@montage
 ```
 
