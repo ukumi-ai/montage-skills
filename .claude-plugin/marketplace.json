@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-plugin-marketplace.json",
   "name": "montage",
   "owner": {
     "name": "Ukumi",
@@ -11,7 +12,12 @@
       "source": "./",
       "description": "Ingest videos into Montage and turn them into editable moments, via the Montage MCP server.",
       "category": "Productivity",
-      "tags": ["video", "clips", "transcription", "mcp"]
+      "tags": [
+        "video",
+        "clips",
+        "transcription",
+        "mcp"
+      ]
     }
   ]
 }

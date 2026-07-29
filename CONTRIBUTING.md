@@ -20,7 +20,7 @@ both hosts point at the root, so `skills/` stays where skills.sh expects it.
 .agents/plugins/
   marketplace.json    Codex-native marketplace
 .mcp.json             Montage MCP server (remote, OAuth) — shared by both hosts
-.app.json             ChatGPT registered-connection mapping (see "ChatGPT wiring")
+.app.json.example     Template for the ChatGPT registered connection (see "ChatGPT wiring")
 skills/<name>/SKILL.md
 agents/<name>.md
 ```
@@ -105,9 +105,9 @@ claude mcp add --transport http montage-dev https://dev-mcp.montage.app/mcp
 ## ChatGPT wiring (one manual step, not yet done)
 
 ChatGPT resolves a remote MCP server through a *registered connection*, not the
-URL alone. `.app.json` currently holds a placeholder, and
-`.codex-plugin/plugin.json` deliberately does **not** reference it — an
-unreferenced placeholder is inert, a referenced one breaks the install.
+URL alone. That connection ID comes from a ChatGPT account, so it cannot be
+generated here — the repo ships `.app.json.example` instead of a real
+`.app.json`, and `.codex-plugin/plugin.json` has no `apps` field yet.
 
 To finish it:
 
@@ -116,8 +116,8 @@ To finish it:
    `https://mcp.montage.app/mcp`.
 3. Copy the connection ID from the resulting URL. Strip the leading `plugin_`:
    the URL shows `plugin_asdk_app_…`, and the file wants `asdk_app_…`.
-4. Put it in `.app.json`, then add `"apps": "./.app.json"` to
-   `.codex-plugin/plugin.json`.
+4. `cp .app.json.example .app.json`, paste the ID in, then add
+   `"apps": "./.app.json"` to `.codex-plugin/plugin.json`.
 
 ## Test locally
 
