@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "montage": {
-      "type": "http",
-      "url": "https://mcp.montage.app/mcp",
-      "oauth_resource": "https://mcp.montage.app/mcp"
-    }
-  }
-}
