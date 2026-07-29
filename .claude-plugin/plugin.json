@@ -1,0 +1,13 @@
+{
+  "name": "montage",
+  "version": "0.2.0",
+  "description": "Ingest videos into Montage and turn them into editable moments, via the Montage MCP server.",
+  "author": {
+    "name": "Ukumi",
+    "url": "https://ukumi.ai"
+  },
+  "homepage": "https://ukumi.ai",
+  "repository": "https://github.com/ukumi-ai/montage-skills",
+  "license": "MIT",
+  "keywords": ["video", "montage", "clips", "transcription", "mcp"]
+}
