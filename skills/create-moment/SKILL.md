@@ -19,18 +19,49 @@ the user an editor link. All tools are on the Montage MCP server.
 
 ## 2. Understand the content
 
-- `get_transcript(project_id)` — paginate for full text with timestamps.
-- `get_video_corpus(project_id)` for the visual rollup;
-  `query_video_corpus_range` to drill into a time range.
-- `get_chapters` / `get_binary_labels` for structure and labels.
+Read all four ingestion outputs before picking anything — each answers a
+different question, and a moment chosen from the transcript alone will cut
+across bad footage.
+
+- `get_video_validation(project_id)` — technical ground truth: `duration_seconds`
+  (the hard upper bound for every segment), `width`/`height`/`fps`, codecs,
+  `is_valid` + `failed_checks`/`error_summary`, and the probe rollups
+  `speech_detection_info`, `audio_quality_info`, `person_detection_info`. Read
+  it first: it tells you whether the footage even has usable speech, audio and
+  people on camera.
+- `get_transcript(project_id)` — what was said, with timestamps and
+  `speaker_id`. Paginate for full text. This is where segment boundaries come
+  from.
+- `get_video_analysis(project_id)` — the vision-model read: scene breakdown,
+  clip candidates with hook/payoff reasoning, `category_name`,
+  `max_people_count`, reframe instructions. Treat its clip candidates as
+  proposals to validate against the transcript, not as final boundaries.
+- `get_video_corpus(project_id, view="rollup")` — on-screen reality: coverage
+  fraction, subject roster with speaking/tracked seconds, hard-veto ranges,
+  screen-text inventory. Only fall back to `view="full"` when the rollup is
+  genuinely not enough — it returns the whole index and is large.
 - `get_moments(project_id)` to see what already exists — don't duplicate.
+
+Low `coverage_fraction` means those windows were never analyzed, not that
+nothing happens there. Say so instead of reporting absence as a finding.
 
 ## 3. Pick segments
 
-Choose one or more `[start, end]` second-pairs from transcript timestamps.
-Rules: `0 <= start < end`, within the video duration. Multiple pairs compose
-one moment (e.g. a hook plus the payoff). Write a short `title` (and
-optionally a `summary`) describing the moment.
+Choose one or more `[start, end]` second-pairs, and make every one of them
+survive all four reads:
+
+- Boundaries come from **transcript** timestamps — cut on sentence edges, not
+  mid-word.
+- The story beat comes from **video analysis** scenes/clip candidates — a
+  moment should be one coherent beat (or a hook plus its payoff).
+- **Corpus** hard-veto ranges are exclusions: do not cut inside them, and
+  prefer windows where the speaking subject is also on camera.
+- **Validation** bounds it: `0 <= start < end <= duration_seconds`, and if
+  `is_valid` is false or speech/person detection is empty, say so before
+  creating anything.
+
+Multiple pairs compose one moment. Write a short `title` (and optionally a
+`summary`) describing the moment.
 
 ## 4. Create the moment
 
