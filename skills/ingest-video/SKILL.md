@@ -50,5 +50,10 @@ poll faster than every 15s).
 On success:
 - `get_project(project_id)` to confirm the project exists and show its name.
 - `get_transcript(project_id)` for the transcript.
+- `get_video_validation(project_id)` for duration, resolution, fps, codecs and
+  whether the footage has usable speech/audio/people.
+- `get_video_analysis(project_id)` and `get_video_corpus(project_id,
+  view="rollup")` when the user wants the visual read too — these are the same
+  outputs the create-moment skill needs.
 - Summarize for the user: project name/id, video size, duration if available,
   language, and a 2-3 sentence gist of the content from the transcript.
