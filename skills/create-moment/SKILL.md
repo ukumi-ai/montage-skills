@@ -16,6 +16,11 @@ the user an editor link. All tools are on the Montage MCP server.
   `get_upload_status(workflow_id)` until `completed` — it returns the
   `project_id` and `file_id`. Ingestion must be complete before creating a
   moment (transcription and video validation results are required).
+- Never pass a video URL to `create_moment` — it takes `project_id`/`file_id`
+  and resolves the video itself. On paid plans ingestion repoints the project's
+  video at the noise-removed copy, so the moment is cut from cleaned audio
+  automatically. Creating a moment before ingestion finishes can catch the
+  pre-correction video, which is a second reason to wait for `completed`.
 
 ## 2. Understand the content
 
