@@ -21,6 +21,11 @@ missing, say so and stop.
   minutes in, during download).
 - Call `upload_video(video_url=<url>)`. Optionally pass `project_name` if the
   user provided one. Record the returned `workflow_id`.
+- Do NOT ask whether the video has background noise. Noise removal runs
+  automatically on paid plans and is unavailable on free ones, so the answer
+  changes nothing — and faint noise is inaudible to the user anyway. Pass
+  `remove_background_noise=false` only if the user volunteers that the audio
+  must be left untouched (music bed, ASMR, layered sound design).
 
 ## Step 2: Poll until done
 
@@ -33,6 +38,9 @@ poll faster than every 15s).
   `validating_video` → `analyzing` (watch `child_workflow_status` for
   understanding / corpus / transcription / thumbnail individually; `thumbnail`
   may be absent on older deployments) → `finalizing`.
+- `child_workflow_status.audio_correction` appears only on paid plans: it reads
+  `completed`, `skipped` (silent video) or `failed`. A failure is not fatal —
+  processing continues on the original audio.
 - Surface `project_id` / `file_id` as soon as they appear.
 - Stop polling when `status` is anything other than `running`.
 
