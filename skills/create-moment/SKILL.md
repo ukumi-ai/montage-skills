@@ -50,7 +50,25 @@ across bad footage.
 Low `coverage_fraction` means those windows were never analyzed, not that
 nothing happens there. Say so instead of reporting absence as a finding.
 
-## 3. Pick segments
+## 3. Choose the playbook
+
+Resolve the selection criteria before choosing segments:
+
+- If the user named a playbook, call `get_playbook(name)` and use its current
+  approved version.
+- If no playbook was named, ask whether they want to use an existing playbook,
+  create a new one, or use the default selection criteria.
+  - Existing: call `list_playbooks`, let the user choose, then call
+    `get_playbook(name)`.
+  - New: collect a name, description and base format, call `create_playbook`,
+    then use the returned playbook.
+  - Default: continue without a user playbook.
+
+Apply the chosen playbook's label rubric to candidate eligibility, ranking
+rubric to ordering, and hook rubric to opening strength. Do not pass the
+playbook to `create_moment`: that tool only persists the segments you select.
+
+## 4. Pick segments
 
 Choose one or more `[start, end]` second-pairs, and make every one of them
 survive all four reads:
@@ -68,7 +86,7 @@ survive all four reads:
 Multiple pairs compose one moment. Write a short `title` (and optionally a
 `summary`) describing the moment.
 
-## 4. Create the moment
+## 5. Create the moment
 
 ```
 create_moment(project_id, title, segments, utterances, summary?, kind?, file_id?)
@@ -88,7 +106,7 @@ create_moment(project_id, title, segments, utterances, summary?, kind?, file_id?
 The response contains `moment.id`, `preprocessing.{status, workflow_id}`, and
 `editor_url`.
 
-## 5. Wait for preprocessing
+## 6. Wait for preprocessing
 
 - If `preprocessing.status` is `"processing"`: poll
   `get_workflow_status(preprocessing.workflow_id)` every ~30s until `status`
@@ -98,7 +116,7 @@ The response contains `moment.id`, `preprocessing.{status, workflow_id}`, and
   could not run (`preprocessing.reason`: `no_video_url` / `no_input_codec` /
   `no_utterances`) — nothing to poll, tell the user why.
 
-## 6. Deliver
+## 7. Deliver
 
 Give the user the `editor_url` from the create_moment response verbatim:
 
