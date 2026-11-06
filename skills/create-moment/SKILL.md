@@ -17,10 +17,8 @@ the user an editor link. All tools are on the Montage MCP server.
   `project_id` and `file_id`. Ingestion must be complete before creating a
   moment (transcription and video validation results are required).
 - Never pass a video URL to `create_moment` — it takes `project_id`/`file_id`
-  and resolves the video itself. On paid plans ingestion repoints the project's
-  video at the noise-removed copy, so the moment is cut from cleaned audio
-  automatically. Creating a moment before ingestion finishes can catch the
-  pre-correction video, which is a second reason to wait for `completed`.
+  and resolves the video itself. Source audio is kept as uploaded; the user
+  picks audio cleanup per clip when exporting in the editor.
 
 ## 2. Understand the content
 
@@ -56,13 +54,9 @@ Resolve the selection criteria before choosing segments:
 
 - If the user named a playbook, call `get_playbook(name)` and use its current
   approved version.
-- If no playbook was named, ask whether they want to use an existing playbook,
-  create a new one, or use the default selection criteria.
-  - Existing: call `list_playbooks`, let the user choose, then call
-    `get_playbook(name)`.
-  - New: collect a name, description and base format, call `create_playbook`,
-    then use the returned playbook.
-  - Default: continue without a user playbook.
+- If no playbook was named, use the user's brief and sensible selection criteria.
+  Do not require a playbook choice to proceed. List/create a playbook only when
+  the user wants reusable preferences; an ordinary clip request is sufficient.
 
 Apply the chosen playbook's label rubric to candidate eligibility, ranking
 rubric to ordering, and hook rubric to opening strength. Do not pass the
@@ -89,16 +83,13 @@ Multiple pairs compose one moment. Write a short `title` (and optionally a
 ## 5. Create the moment
 
 ```
-create_moment(project_id, title, segments, utterances, summary?, kind?, file_id?)
+create_moment(project_id, title, segments, summary?, kind?, file_id?)
 ```
 
-- `utterances` (required for speaker detection): the transcript segments from
-  step 2 that overlap the chosen `segments`, as
-  `[{"start": <sec>, "end": <sec>, "text": "...", "speaker": "<speaker_id>"}, ...]`
-  — map `get_transcript` fields `start_time`→`start`, `end_time`→`end`,
-  `speaker_id`→`speaker`, using absolute video seconds
-  (`timestamp_format="seconds"`). Cover every chosen segment window; without
-  utterances, speaker detection is skipped.
+- `segments`: `[[start, end], ...]` in absolute video seconds, picked from
+  `get_transcript` (`timestamp_format="seconds"`) or `get_video_corpus`. The
+  server reads the stored transcript for speaker detection; do not send
+  transcript text.
 - `kind`: content (default), hook_montage, ad, or sponsor_read.
 - `file_id` only when the project has multiple files.
 - Requires the `moments:write` scope.
@@ -110,7 +101,7 @@ The response contains `moment.id`, `preprocessing.{status, workflow_id}`, and
 
 - If `preprocessing.status` is `"processing"`: poll
   `get_workflow_status(preprocessing.workflow_id)` every ~30s until `status`
-  is `completed` (typically 2–10 minutes). On `failed`/`timed_out`, report it
+  is `completed` (typically 2–10 minutes). On any terminal state other than `completed` (including canceled/terminated), report it
   — the moment still exists, but the editor may lack the downscaled preview.
 - `"ready"` means enrichment already exists; `"skipped"` means preprocessing
   could not run (`preprocessing.reason`: `no_video_url` / `no_input_codec` /
@@ -118,10 +109,7 @@ The response contains `moment.id`, `preprocessing.{status, workflow_id}`, and
 
 ## 7. Deliver
 
-Give the user the `editor_url` from the create_moment response verbatim:
-
-```
-https://studio.montage.app/project/{project_id}?view=clipEditing&clipId={moment_id}
-```
-
-(`clipId` is the moment id.)
+Give the user the `editor_url` from the create_moment response verbatim. Never
+build or edit it yourself: the server sets the right host for the environment
+and the `src`/`client` attribution. It opens the moment (`clipId`) in the
+Montage editor.

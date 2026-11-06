@@ -14,7 +14,7 @@ Or find them on [skills.sh](https://skills.sh).
 
 | Skill | What it does |
 |-------|--------------|
-| [ingest-video](skills/ingest-video/SKILL.md) | Ingest a video into Montage from a Google Drive or public URL and track the pipeline to completion. |
+| [ingest-video](skills/ingest-video/SKILL.md) | Ingest a video into Montage from a Google Drive or Dropbox link and track the pipeline to completion. |
 | [create-moment](skills/create-moment/SKILL.md) | Create an editable moment (clip) from an ingested video and deliver an editor link. |
 
 Both skills require the Montage MCP server to be connected.
