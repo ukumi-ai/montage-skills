@@ -1,14 +1,16 @@
 ---
 name: ingest-video
-description: Use when the user wants to ingest, upload, or import a video into Montage from a Google Drive or public URL, or asks to track/poll an upload_video ingestion workflow through its pipeline steps.
+description: Use when the user wants to ingest, upload, or import a video into Montage from a Google Drive or Dropbox link, or asks to track/poll an upload_video ingestion workflow through its pipeline steps.
 ---
 
 # Ingest Video from URL
 
-Ingest a video into Montage from a Google Drive (or any public) URL using the
+Ingest a video into Montage from a Google Drive or Dropbox link using the
 Montage MCP tools and watch it through every pipeline step.
 
-Argument: the video URL. If none was given, ask for one before doing anything.
+Argument: the video URL. If none was given, ask for a Google Drive or Dropbox
+link to the video before doing anything. YouTube and direct file URLs are not
+accepted.
 
 Requires the Montage MCP server to be connected with the `upload_video` /
 `get_upload_status` tools available (shipped in PR #1298). If the tools are
@@ -18,37 +20,37 @@ missing, say so and stop.
 
 - Google Drive links must be shared as "Anyone with the link". If the URL is a
   gdrive link, remind the user of this BEFORE starting (a private file fails
-  minutes in, during download).
+  minutes in, during download). Dropbox share links work as they are.
 - Call `upload_video(video_url=<url>)`. Optionally pass `project_name` if the
   user provided one. Record the returned `workflow_id`.
-- Do NOT ask whether the video has background noise. Noise removal runs
-  automatically on paid plans and is unavailable on free ones, so the answer
-  changes nothing — and faint noise is inaudible to the user anyway. Pass
-  `remove_background_noise=false` only if the user volunteers that the audio
-  must be left untouched (music bed, ASMR, layered sound design).
+- Uploads keep source audio unchanged; users choose cleanup per clip at
+  export, where Pro access is checked.
 
 ## Step 2: Poll until done
 
 Call `get_upload_status(workflow_id)` in a loop, sleeping between calls
-(`sleep 30` via Bash; downloading and analyzing are the long steps — do not
-poll faster than every 15s).
+(use the host client's waiting mechanism; do not poll faster than every 15s).
+If the client cannot keep waiting, retain the workflow ID for resumption and
+report that processing is still running; never claim completion.
 
 - Report each **step transition** to the user as it happens, with a plain
   reading of the step: `creating_records` → `validating_url` → `downloading` →
   `validating_video` → `analyzing` (watch `child_workflow_status` for
   understanding / corpus / transcription / thumbnail individually; `thumbnail`
   may be absent on older deployments) → `finalizing`.
-- `child_workflow_status.audio_correction` appears only on paid plans: it reads
-  `completed`, `skipped` (silent video) or `failed`. A failure is not fatal —
-  processing continues on the original audio.
-- Surface `project_id` / `file_id` as soon as they appear.
+- `child_workflow_status.audio_correction` may appear on older, in-flight
+  uploads. New uploads never schedule source cleanup.
+- Retain `project_id` / `file_id` internally for subsequent calls; use names in user-facing updates.
 - Stop polling when `status` is anything other than `running`.
 
 **Failure handling:**
-- `result.success == false` or `status == failed`: report the `message`/
-  `error` verbatim. Common causes: gdrive file not public ("Anyone with the
-  link"), gdrive rate limit, non-video URL. The project is marked `failed` —
-  tell the user they can rerun this command after fixing the share settings.
+- `result.success == false` or `status == failed`: when the result leads with
+  `user_guidance`, tell the user what went wrong and how to fix it from that
+  field; otherwise report the `message`/`error` verbatim. Common causes: file
+  not shared publicly, Drive rate limit, a link to something that is not a
+  video. After the user fixes it, start a new upload with a new
+  idempotency_key, even for the same link; the old key returns the failed run.
+- `limit_reached: true`: show `user_message`. Follow `assistant_instruction` on when retrying helps.
 - A single failed analysis child (see `child_workflow_errors`) is not fatal to
   the others — say which succeeded and which failed. A failed `thumbnail` is
   cosmetic only: it never fails the project or blocks billing.
