@@ -31,7 +31,7 @@ across bad footage.
   `is_valid` + `failed_checks`/`error_summary`, and the probe rollups
   `speech_detection_info`, `audio_quality_info`, `person_detection_info`. Read
   it first: it tells you whether the footage even has usable speech, audio and
-  people on camera.
+  display size and rotation.
 - `get_transcript(project_id)` — what was said, with timestamps and
   `speaker_id`. Paginate for full text. This is where segment boundaries come
   from.
@@ -80,10 +80,15 @@ survive all four reads:
 Multiple pairs compose one moment. Write a short `title` (and optionally a
 `summary`) describing the moment.
 
+Silent v2 uploads have visual analysis but no usable transcript. Do not call
+create_moment for those uploads: clips on silent footage are not available
+over MCP yet. Upload v2's saved clip_format is for the next clip phase; current
+create_moment still produces 9:16 clips. Source audio is unchanged.
+
 ## 5. Create the moment
 
 ```
-create_moment(project_id, title, segments, summary?, kind?, file_id?)
+create_moment(project_id=<id>, title=<title>, segments=[[start, end]], idempotency_key=<stable-action-key>)
 ```
 
 - `segments`: `[[start, end], ...]` in absolute video seconds, picked from
@@ -100,14 +105,20 @@ The response contains `moment.id`, `preprocessing.{status, workflow_id}`, and
 ## 6. Wait for preprocessing
 
 - If `preprocessing.status` is `"processing"`: poll
-  `get_workflow_status(preprocessing.workflow_id)` every ~30s until `status`
-  is `completed` (typically 2–10 minutes). On any terminal state other than `completed` (including canceled/terminated), report it
+  `get_workflow_status(preprocessing.workflow_id)`, honoring `retry_after_seconds`,
+  at most 10 times until `state=ready` (typically 2–10 minutes). Follow the
+  shared completion rules in the server instructions. On blocked or failed
+  (including canceled/terminated), report it
   — the moment still exists, but the editor may lack the downscaled preview.
 - `"ready"` means enrichment already exists; `"skipped"` means preprocessing
   could not run (`preprocessing.reason`: `no_video_url` / `no_input_codec` /
   `no_utterances`) — nothing to poll, tell the user why.
 
 ## 7. Deliver
+
+Say "Clip saved. Preprocessing pending" while processing, or "Clip ready to
+edit" only after preprocessing reaches ready. If the polling budget ends,
+retain the workflow ID and explain how to resume by asking to check status.
 
 Give the user the `editor_url` from the create_moment response verbatim. Never
 build or edit it yourself: the server sets the right host for the environment
