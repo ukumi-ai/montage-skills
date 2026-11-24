@@ -1,69 +1,54 @@
 ---
 name: ingest-video
-description: Use when the user wants to ingest, upload, or import a video into Montage from a Google Drive or Dropbox link, or asks to track/poll an upload_video ingestion workflow through its pipeline steps.
+description: Import a video into Montage from Drive or Dropbox, resume a stopped MCP upload, or check its pipeline progress.
 ---
 
 # Ingest Video from URL
 
-Ingest a video into Montage from a Google Drive or Dropbox link using the
-Montage MCP tools and watch it through every pipeline step.
+Requires upload_video and get_upload_status. Ask for a Google Drive or Dropbox
+file link if none was supplied. Drive must allow “Anyone with the link”.
+No YouTube, direct URLs, local files or automatic clip finding in this flow.
 
-Argument: the video URL. If none was given, ask for a Google Drive or Dropbox
-link to the video before doing anything. YouTube and direct file URLs are not
-accepted.
+1. Call `upload_video(video_url=<url>, idempotency_key=<stable-action-key>,
+   project_name=<optional-name>)`. Retain the workflow_id. Reuse the SAME key
+   and arguments after interruption; this returns the same run.
+2. Poll `get_upload_status(workflow_id)` at most 10 times, honoring
+   retry_after_seconds. Report step transitions: creating_records →
+   validating_url → checking_limits → downloading → validating_video →
+   checking_limits → planning → analyzing → finalizing. Child statuses name
+   validation, understanding, corpus, transcription and thumbnail. Older v1
+   runs may show routing/audio_correction; new uploads keep source audio unchanged.
+3. State outranks transport status. A completed workflow can be blocked or
+   failed. Stop polling on ready/blocked/failed; retain the ID if still running.
+4. On ready, read get_project and get_video_validation (duration, encoded and
+   display dimensions, rotation). Read get_transcript, get_video_analysis and
+   get_video_corpus(view="rollup") as needed. Silent v2 uploads can be ready
+   with ready_for_clipping=false: no transcript, but visual analysis is usable.
+   Clips on silent footage are not available over MCP yet.
 
-Requires the Montage MCP server to be connected with the `upload_video` /
-`get_upload_status` tools available (shipped in PR #1298). If the tools are
-missing, say so and stop.
+## Stops and recovery
 
-## Step 1: Start the ingestion
+Show user_guidance/user_message. V2 advice comes from reason codes, v1 from
+legacy provider messages. Never silently retry a rejected file.
 
-- Google Drive links must be shared as "Anyone with the link". If the URL is a
-  gdrive link, remind the user of this BEFORE starting (a private file fails
-  minutes in, during download). Dropbox share links work as they are.
-- Call `upload_video(video_url=<url>)`. Optionally pass `project_name` if the
-  user provided one. Record the returned `workflow_id`.
-- Uploads keep source audio unchanged; users choose cleanup per clip at
-  export, where Pro access is checked.
+- usage_limit_reached: explain allowed_seconds/source duration. With the user's
+  choice, `upload_video(project_id=<saved-id>, quota_action="process_part",
+  idempotency_key=<NEW-action-key>)` processes the first part that fits;
+  process_all rechecks the whole file after capacity changes. Nothing bills
+  until analysis completes. V1 cannot resume or process a part.
+- analysis_unavailable or processing_failed with retryable=true: retry the same
+  project_id with a NEW key. The original File and stored object are reused.
+- too_short: under 1 second; choose a longer video.
+- no_video_stream: choose a video, not an audio-only file.
+- video_failed_checks/invalid_video: re-export MP4 (H.264/AAC).
+- link_not_readable/not_public/url_blocked: fix sharing or use another supported link.
+- drive_rate_limited: wait or share a fresh copy (legacy advice).
+- file_too_large/not_a_video: choose a supported video file (legacy advice).
+- download failure without a stored source: fix the link and start a NEW upload
+  with a new key. Do not resume a missing/deleted project.
+- Thumbnail failure is cosmetic; other failed analysis children fail the run.
 
-## Step 2: Poll until done
-
-Call `get_upload_status(workflow_id)` in a loop, sleeping between calls
-(use the host client's waiting mechanism; do not poll faster than every 15s).
-If the client cannot keep waiting, retain the workflow ID for resumption and
-report that processing is still running; never claim completion.
-
-- Report each **step transition** to the user as it happens, with a plain
-  reading of the step: `creating_records` → `validating_url` → `downloading` →
-  `validating_video` → `analyzing` (watch `child_workflow_status` for
-  understanding / corpus / transcription / thumbnail individually; `thumbnail`
-  may be absent on older deployments) → `finalizing`.
-- `child_workflow_status.audio_correction` may appear on older, in-flight
-  uploads. New uploads never schedule source cleanup.
-- Retain `project_id` / `file_id` internally for subsequent calls; use names in user-facing updates.
-- Stop polling when `status` is anything other than `running`.
-
-**Failure handling:**
-- `result.success == false` or `status == failed`: when the result leads with
-  `user_guidance`, tell the user what went wrong and how to fix it from that
-  field; otherwise report the `message`/`error` verbatim. Common causes: file
-  not shared publicly, Drive rate limit, a link to something that is not a
-  video. After the user fixes it, start a new upload with a new
-  idempotency_key, even for the same link; the old key returns the failed run.
-- `limit_reached: true`: show `user_message`. Follow `assistant_instruction` on when retrying helps.
-- A single failed analysis child (see `child_workflow_errors`) is not fatal to
-  the others — say which succeeded and which failed. A failed `thumbnail` is
-  cosmetic only: it never fails the project or blocks billing.
-
-## Step 3: Verify and summarize
-
-On success:
-- `get_project(project_id)` to confirm the project exists and show its name.
-- `get_transcript(project_id)` for the transcript.
-- `get_video_validation(project_id)` for duration, resolution, fps, codecs and
-  whether the footage has usable speech/audio/people.
-- `get_video_analysis(project_id)` and `get_video_corpus(project_id,
-  view="rollup")` when the user wants the visual read too — these are the same
-  outputs the create-moment skill needs.
-- Summarize for the user: project name/id, video size, duration if available,
-  language, and a 2-3 sentence gist of the content from the transcript.
+Optional v2 clip_format: 9:16 (default), 4:5 or 16:9. A nonlandscape source
+requested as 16:9 falls back to its own shape. Inspect facts, route_key,
+produced/skipped, format_fallback and reframe_needed before describing results.
+There is no people-on-camera validation or automatic source denoising.
